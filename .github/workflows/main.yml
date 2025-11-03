@@ -1,0 +1,67 @@
+name: "Setup PySide6 for Windows7 Action"
+description: "Set up GitHub Actions workflow with a specific version of PySide6 for Windows7"
+
+inputs:
+  pyside6-version:
+    description: "PySide6 version input, e.g. '6.8.3'"
+    required: true
+  architecture:
+    description: "PySide6 architecture, e.g. 'x86' or 'x64', default is 'x64'"
+    required: false
+    default: x64
+  relative-lib-path:
+    description: "PySide6 relative library path, default is 'Lib/site-packages'"
+    required: false
+    default: Lib/site-packages
+  github-repo:
+    description: "PySide6 for Windows7 Github repository"
+    required: false
+    default: crystalidea/qt6windows7
+  release-tag:
+    description: "Release tag for the github repo, default is v{{ inputs.pyside6-version }}"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup PySide6 for Windows7
+      shell: bash
+      run: |
+        python_path=$(which python)
+        echo "Python path is: $python_path"
+
+        python_home=$(dirname "$python_path")
+        echo "Python home is: $python_home"
+
+        pyside_arch="${{ inputs.architecture }}"
+        pyside_name="qt6_${pyside_arch}_to_run_on_windows7"
+        pyside_file="${pyside_name}.7z"
+
+        release_tag="${{ inputs.release-tag }}"
+
+        if [ -z "$release_tag" ]; then
+          echo "Input release tag is empty. Use input PySide6 version ${{ inputs.pyside6-version }}"
+          release_tag="v${{ inputs.pyside6-version }}"
+        fi
+
+        python -c "import sys; print(sys.version)"
+        python -m pip install --upgrade pip
+        python -m pip install setuptools wheel
+        python -m pip install PySide6-Essentials==${{ inputs.pyside6-version }}
+        curl -L -o "${pyside_file}" "https://github.com/${{ inputs.github-repo }}/releases/download/${release_tag}/${pyside_file}"
+        7z x "${pyside_file}" -o"${pyside_name}" -y
+        cd "${pyside_name}"
+        mkdir plugins
+        mv imageformats platforms styles plugins
+        cd ..
+
+        relative_lib_path="${{ inputs.relative-lib-path }}"
+        if [ -z "$relative_lib_path" ]; then
+          pyside_lib_destination="${python_home}/PySide6/"
+        else
+          pyside_lib_destination="${python_home}/${relative_lib_path}/PySide6/"
+        fi
+        cp -r "${pyside_name}"/* ${pyside_lib_destination}
+branding:
+  color: blue
+  icon: package
